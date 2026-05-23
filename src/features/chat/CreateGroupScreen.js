@@ -1,28 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
-import { mockDb } from '../../data/repositories/firebaseRepository';
-import { useAuth } from '../auth/AuthContext';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Alert,
+  ActivityIndicator,
+  Modal,
+} from "react-native";
+import { mockDb } from "../../data/repositories/firebaseRepository";
+import { useAuth } from "../auth/AuthContext";
 
 export default function CreateGroupScreen({ navigation }) {
   const { user } = useAuth();
-  const [groupName, setGroupName] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState(user?.courses?.[0] || 'GENERAL');
+  const [groupName, setGroupName] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState(
+    user?.courses?.[0] || "GENERAL",
+  );
+  const [customCourse, setCustomCourse] = useState("");
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Modals state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [createdGroupInfo, setCreatedGroupInfo] = useState(null);
+  const [hasSubmitAttempt, setHasSubmitAttempt] = useState(false);
+
   const coursesList = [
-    { code: 'GENERAL', name: 'Học tập Chung' },
-    { code: 'CS101', name: 'Nhập môn Lập trình' },
-    { code: 'MATH201', name: 'Giải tích 2' },
-    { code: 'PHY102', name: 'Vật lý Đại cương' }
+    { code: "GENERAL", name: "Học tập Chung" },
+    { code: "CS101", name: "Nhập môn Lập trình" },
+    { code: "MATH201", name: "Giải tích 2" },
+    { code: "PHY102", name: "Vật lý Đại cương" },
+    { code: "CUSTOM", name: "Khác (Tự điền)..." },
   ];
 
   useEffect(() => {
     const fetchStudents = async () => {
       // Lấy danh sách các sinh viên khác để thêm vào nhóm học tập
-      const allUsers = await mockDb.getCollection('users');
-      const otherStudents = allUsers.filter(u => u.uid !== user?.uid);
+      const allUsers = await mockDb.getCollection("users");
+      const otherStudents = allUsers.filter((u) => u.uid !== user?.uid);
       setAvailableUsers(otherStudents);
     };
 
@@ -31,15 +53,25 @@ export default function CreateGroupScreen({ navigation }) {
 
   const toggleSelectMember = (userId) => {
     if (selectedMemberIds.includes(userId)) {
-      setSelectedMemberIds(selectedMemberIds.filter(id => id !== userId));
+      setSelectedMemberIds(selectedMemberIds.filter((id) => id !== userId));
     } else {
       setSelectedMemberIds([...selectedMemberIds, userId]);
     }
   };
 
   const handleCreateGroup = async () => {
+    setHasSubmitAttempt(true);
     if (!groupName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên nhóm học tập!');
+      setErrorMessage("Vui lòng nhập tên nhóm học tập!");
+      setShowErrorModal(true);
+      return;
+    }
+
+    const finalCourse =
+      selectedCourse === "CUSTOM" ? customCourse.trim() : selectedCourse;
+    if (selectedCourse === "CUSTOM" && !finalCourse) {
+      setErrorMessage("Vui lòng nhập tên môn học của bạn!");
+      setShowErrorModal(true);
       return;
     }
 
@@ -47,58 +79,73 @@ export default function CreateGroupScreen({ navigation }) {
 
     try {
       // Thành viên mặc định gồm người tạo (currentUser) và các thành viên được chọn
-      const members = [user?.uid || 'anonymous', ...selectedMemberIds];
+      const members = [user?.uid || "anonymous", ...selectedMemberIds];
 
       const groupData = {
         name: groupName.trim(),
-        courseId: selectedCourse,
+        courseId: finalCourse,
         members: members,
         lastMessage: {
           text: `Nhóm học tập "${groupName.trim()}" đã được khởi tạo thành công! 🎉`,
-          senderName: 'Hệ Thống',
-          timestamp: Date.now()
-        }
+          senderName: "Hệ Thống",
+          timestamp: Date.now(),
+        },
       };
 
       // Lưu nhóm vào database
-      const newGroup = await mockDb.addDocument('groups', groupData);
+      const newGroup = await mockDb.addDocument("groups", groupData);
 
       // Gửi tin nhắn chào mừng từ hệ thống
       await mockDb.sendMessage(
-        newGroup.groupId, 
-        'system', 
-        'Hệ Thống', 
-        `Chào mừng các bạn đã tham gia nhóm học tập môn ${selectedCourse}! Hãy cùng nhau chia sẻ tài liệu và lên lịch họp ôn tập nhé.`
+        newGroup.groupId,
+        "system",
+        "Hệ Thống",
+        `Chào mừng các bạn đã tham gia nhóm học tập môn ${selectedCourse}! Hãy cùng nhau chia sẻ tài liệu và lên lịch họp ôn tập nhé.`,
       );
 
-      Alert.alert('Thành công', 'Đã khởi tạo nhóm học mới thành công!', [
-        { 
-          text: 'OK', 
-          onPress: () => {
-            navigation.goBack();
-            navigation.navigate('ChatRoom', { groupId: newGroup.groupId, groupName: newGroup.name });
-          } 
-        }
-      ]);
+      setCreatedGroupInfo(newGroup);
+      setShowSuccessModal(true);
     } catch (error) {
-      console.error('Lỗi khi tạo nhóm:', error);
-      Alert.alert('Lỗi', 'Không thể tạo nhóm học tập. Vui lòng thử lại!');
+      console.error("Lỗi khi tạo nhóm:", error);
+      setErrorMessage("Không thể tạo nhóm học tập. Vui lòng thử lại!");
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    if (createdGroupInfo) {
+      navigation.goBack();
+      navigation.navigate("ChatRoom", {
+        groupId: createdGroupInfo.groupId,
+        groupName: createdGroupInfo.name,
+      });
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.title}>Tạo Nhóm Học Mới 👥</Text>
-        <Text style={styles.subtitle}>Tạo không gian học tập chung để thảo luận, chia sẻ tài liệu và lên lịch ôn thi.</Text>
+        <Text style={styles.subtitle}>
+          Tạo không gian học tập chung để thảo luận, chia sẻ tài liệu và lên
+          lịch ôn thi.
+        </Text>
 
         {/* Tên nhóm */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Tên nhóm học tập *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              hasSubmitAttempt &&
+                !groupName.trim() && { borderColor: "red", borderWidth: 1 },
+            ]}
             placeholder="Ví dụ: Nhóm ôn tập Giải Tích kì 2026.1"
             placeholderTextColor="#8E8E93"
             value={groupName}
@@ -115,26 +162,48 @@ export default function CreateGroupScreen({ navigation }) {
                 key={course.code}
                 style={[
                   styles.courseBadge,
-                  selectedCourse === course.code && styles.courseBadgeActive
+                  selectedCourse === course.code && styles.courseBadgeActive,
                 ]}
                 onPress={() => setSelectedCourse(course.code)}
               >
-                <Text style={[
-                  styles.courseBadgeText,
-                  selectedCourse === course.code && styles.courseBadgeTextActive
-                ]}>
-                  {course.name} ({course.code})
+                <Text
+                  style={[
+                    styles.courseBadgeText,
+                    selectedCourse === course.code &&
+                      styles.courseBadgeTextActive,
+                  ]}
+                >
+                  {course.name}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
+          {selectedCourse === "CUSTOM" && (
+            <TextInput
+              style={[
+                styles.input,
+                { marginTop: 10 },
+                hasSubmitAttempt &&
+                  !customCourse.trim() && {
+                    borderColor: "red",
+                    borderWidth: 1,
+                  },
+              ]}
+              placeholder="Nhập kí hiệu môn / chi tiết môn..."
+              placeholderTextColor="#8E8E93"
+              value={customCourse}
+              onChangeText={setCustomCourse}
+            />
+          )}
         </View>
 
         {/* Thêm thành viên */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Mời bạn học cùng tham gia (Tùy chọn)</Text>
-          <Text style={styles.description}>Mời các StudyBuddy đang có nhu cầu học cùng môn:</Text>
-          
+          <Text style={styles.description}>
+            Mời các StudyBuddy đang có nhu cầu học cùng môn:
+          </Text>
+
           <View style={styles.memberList}>
             {availableUsers.map((user) => {
               const isSelected = selectedMemberIds.includes(user.uid);
@@ -143,7 +212,7 @@ export default function CreateGroupScreen({ navigation }) {
                   key={user.uid}
                   style={[
                     styles.memberCard,
-                    isSelected && styles.memberCardActive
+                    isSelected && styles.memberCardActive,
                   ]}
                   onPress={() => toggleSelectMember(user.uid)}
                 >
@@ -151,10 +220,24 @@ export default function CreateGroupScreen({ navigation }) {
                     <Text style={styles.avatarText}>{user.name[0]}</Text>
                   </View>
                   <View style={styles.memberMeta}>
-                    <Text style={[styles.memberName, isSelected && styles.memberNameActive]}>{user.name}</Text>
-                    <Text style={styles.memberSub}>Đánh giá: ⭐️ {user.rating}</Text>
+                    <Text
+                      style={[
+                        styles.memberName,
+                        isSelected && styles.memberNameActive,
+                      ]}
+                    >
+                      {user.name}
+                    </Text>
+                    <Text style={styles.memberSub}>
+                      Đánh giá: ⭐️ {user.rating}
+                    </Text>
                   </View>
-                  <View style={[styles.checkboxCircle, isSelected && styles.checkboxCircleActive]}>
+                  <View
+                    style={[
+                      styles.checkboxCircle,
+                      isSelected && styles.checkboxCircleActive,
+                    ]}
+                  >
                     {isSelected && <Text style={styles.checkboxCheck}>✓</Text>}
                   </View>
                 </TouchableOpacity>
@@ -163,8 +246,8 @@ export default function CreateGroupScreen({ navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.submitButton} 
+        <TouchableOpacity
+          style={styles.submitButton}
           onPress={handleCreateGroup}
           disabled={isLoading}
         >
@@ -175,6 +258,44 @@ export default function CreateGroupScreen({ navigation }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Error Modal */}
+      <Modal visible={showErrorModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalTitle, { color: "red" }]}>Lỗi</Text>
+            <Text style={styles.modalMessage}>{errorMessage}</Text>
+            <TouchableOpacity
+              style={styles.modalBtnAction}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.modalBtnText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalTitle, { color: "#34C759" }]}>
+              Thành công
+            </Text>
+            <Text style={styles.modalMessage}>
+              Đã khởi tạo nhóm học mới thành công!
+            </Text>
+            <TouchableOpacity
+              style={styles.modalBtnAction}
+              onPress={handleSuccessClose}
+            >
+              <Text style={[styles.modalBtnText, { color: "#34C759" }]}>
+                Vào nhóm ngay
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -182,19 +303,19 @@ export default function CreateGroupScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   scrollContainer: {
     padding: 20,
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1C1C1E',
+    fontWeight: "bold",
+    color: "#1C1C1E",
   },
   subtitle: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginTop: 4,
     lineHeight: 18,
     marginBottom: 24,
@@ -204,33 +325,33 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1C1C1E',
+    fontWeight: "600",
+    color: "#1C1C1E",
     marginBottom: 10,
   },
   description: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginBottom: 12,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: "#E5E5EA",
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 48,
     fontSize: 15,
-    color: '#1C1C1E',
+    color: "#1C1C1E",
   },
   courseBadgeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   courseBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: "#E5E5EA",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -238,47 +359,47 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseBadgeActive: {
-    backgroundColor: '#FF9500',
-    borderColor: '#FF9500',
+    backgroundColor: "#FF9500",
+    borderColor: "#FF9500",
   },
   courseBadgeText: {
     fontSize: 13,
-    color: '#3A3A3C',
-    fontWeight: '500',
+    color: "#3A3A3C",
+    fontWeight: "500",
   },
   courseBadgeTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
   memberList: {
     marginTop: 6,
   },
   memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: "#E5E5EA",
   },
   memberCardActive: {
-    borderColor: '#FF9500',
-    backgroundColor: 'rgba(255, 149, 0, 0.03)',
+    borderColor: "#FF9500",
+    backgroundColor: "rgba(255, 149, 0, 0.03)",
   },
   memberAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E5E5EA',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#E5E5EA",
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#8E8E93',
+    fontWeight: "bold",
+    color: "#8E8E93",
   },
   memberMeta: {
     flex: 1,
@@ -286,15 +407,15 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1C1C1E',
+    fontWeight: "bold",
+    color: "#1C1C1E",
   },
   memberNameActive: {
-    color: '#FF9500',
+    color: "#FF9500",
   },
   memberSub: {
     fontSize: 11,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginTop: 2,
   },
   checkboxCircle: {
@@ -302,36 +423,73 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#C7C7CC',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "#C7C7CC",
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkboxCircleActive: {
-    borderColor: '#FF9500',
-    backgroundColor: '#FF9500',
+    borderColor: "#FF9500",
+    backgroundColor: "#FF9500",
   },
   checkboxCheck: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   submitButton: {
-    backgroundColor: '#FF9500',
+    backgroundColor: "#FF9500",
     borderRadius: 12,
     height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 10,
     marginBottom: 30,
-    shadowColor: '#FF9500',
+    shadowColor: "#FF9500",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 3,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 20,
+    paddingHorizontal: 15,
+    color: "#333",
+  },
+  modalBtnAction: {
+    borderTopWidth: 1,
+    borderTopColor: "#EEE",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalBtnText: {
+    fontSize: 16,
+    color: "#007AFF",
+    fontWeight: "bold",
   },
 });

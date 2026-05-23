@@ -1,32 +1,33 @@
-import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StatusBar } from 'expo-status-bar';
-import { Text, View, ActivityIndicator } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
+import * as React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { StatusBar } from "expo-status-bar";
+import { Text, View, ActivityIndicator } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
-import { AuthProvider, useAuth } from '../features/auth/AuthContext';
-import { ThemeProvider } from '../core/ThemeContext';
-import { LocationProvider } from '../core/LocationContext';
-import { mockDb } from '../data/repositories/firebaseRepository';
+import { AuthProvider, useAuth } from "../features/auth/AuthContext";
+import { ThemeProvider } from "../core/ThemeContext";
+import { LocationProvider } from "../core/LocationContext";
+import { mockDb } from "../data/repositories/firebaseRepository";
 
 // Nhập các màn hình chính
-import MatchScreen from '../features/home/MatchScreen';
-import ChatListScreen from '../features/chat/ChatListScreen';
-import ChatRoomScreen from '../features/chat/ChatRoomScreen';
-import CreateMeetingScreen from '../features/schedule/CreateMeetingScreen';
-import FileShareScreen from '../features/chat/FileShareScreen';
-import PeerReviewScreen from '../features/review/PeerReviewScreen';
-import ProfileScreen from '../features/profile/ProfileScreen';
-import CreateGroupScreen from '../features/chat/CreateGroupScreen';
+import MatchScreen from "../features/home/MatchScreen";
+import ChatListScreen from "../features/chat/ChatListScreen";
+import ChatRoomScreen from "../features/chat/ChatRoomScreen";
+import CreateMeetingScreen from "../features/schedule/CreateMeetingScreen";
+import FileShareScreen from "../features/chat/FileShareScreen";
+import PeerReviewScreen from "../features/review/PeerReviewScreen";
+import ProfileScreen from "../features/profile/ProfileScreen";
+import CreateGroupScreen from "../features/chat/CreateGroupScreen";
+import FeedScreen from "../features/feed/FeedScreen";
 
 // Nhập các màn hình xác thực
-import LoginScreen from '../features/auth/LoginScreen';
-import RegisterScreen from '../features/auth/RegisterScreen';
+import LoginScreen from "../features/auth/LoginScreen";
+import RegisterScreen from "../features/auth/RegisterScreen";
 
-import { registerForPushNotificationsAsync } from '../core/notification';
+import { registerForPushNotificationsAsync } from "../core/notification";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,25 +53,25 @@ function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#FF9500',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: "#FF9500",
+        tabBarInactiveTintColor: "#8E8E93",
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: '#E5E5EA',
+          borderTopColor: "#E5E5EA",
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
         },
         headerStyle: {
-          backgroundColor: '#FFFFFF',
-          shadowColor: 'transparent',
+          backgroundColor: "#FFFFFF",
+          shadowColor: "transparent",
           elevation: 0,
           borderBottomWidth: 1,
-          borderBottomColor: '#E5E5EA',
+          borderBottomColor: "#E5E5EA",
         },
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
         },
       }}
     >
@@ -78,27 +79,44 @@ function TabNavigator() {
         name="Match"
         component={MatchScreen}
         options={{
-          title: 'Tìm bạn học',
-          tabBarLabel: 'Tìm bạn',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🤝</Text>
+          title: "Tìm bạn học",
+          tabBarLabel: "Tìm bạn",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 20 }}>🤝</Text>
+          ),
         }}
       />
       <Tab.Screen
         name="ChatList"
         component={ChatListScreen}
         options={{
-          title: 'Hộp thoại nhóm',
-          tabBarLabel: 'Nhóm Chat',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>💬</Text>
+          title: "Hộp thoại nhóm",
+          tabBarLabel: "Nhóm Chat",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 20 }}>💬</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Feed"
+        component={FeedScreen}
+        options={{
+          title: "Cộng đồng",
+          tabBarLabel: "Cộng đồng",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 20 }}>🌐</Text>
+          ),
         }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Cá nhân',
-          tabBarLabel: 'Cá nhân',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👤</Text>
+          title: "Cá nhân",
+          tabBarLabel: "Cá nhân",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 20 }}>👤</Text>
+          ),
         }}
       />
     </Tab.Navigator>
@@ -107,12 +125,12 @@ function TabNavigator() {
 
 const stackScreenOptions = {
   headerStyle: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
-  headerTintColor: '#FF9500',
+  headerTintColor: "#FF9500",
   headerTitleStyle: {
-    fontWeight: 'bold',
-    color: '#1C1C1E',
+    fontWeight: "bold",
+    color: "#1C1C1E",
   },
   headerBackTitleVisible: false,
 };
@@ -129,22 +147,22 @@ function AuthenticatedStack() {
       <Stack.Screen
         name="CreateMeeting"
         component={CreateMeetingScreen}
-        options={{ title: 'Lên lịch họp' }}
+        options={{ title: "Lên lịch họp" }}
       />
       <Stack.Screen
         name="FileShare"
         component={FileShareScreen}
-        options={{ title: 'Tài liệu chia sẻ' }}
+        options={{ title: "Tài liệu chia sẻ" }}
       />
       <Stack.Screen
         name="PeerReview"
         component={PeerReviewScreen}
-        options={{ title: 'Đánh giá đồng đội' }}
+        options={{ title: "Đánh giá đồng đội" }}
       />
       <Stack.Screen
         name="CreateGroup"
         component={CreateGroupScreen}
-        options={{ title: 'Tạo nhóm học mới' }}
+        options={{ title: "Tạo nhóm học mới" }}
       />
     </Stack.Navigator>
   );
@@ -173,14 +191,21 @@ function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#F8F9FA",
+        }}
+      >
         <ActivityIndicator size="large" color="#FF9500" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer key={user ? 'authenticated' : 'unauthenticated'}>
+    <NavigationContainer key={user ? "authenticated" : "unauthenticated"}>
       <StatusBar style="dark" />
       {user ? <AuthenticatedStack /> : <UnauthenticatedStack />}
     </NavigationContainer>

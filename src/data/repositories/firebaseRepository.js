@@ -11,21 +11,24 @@
  *   - src/data/repositories/ReviewRepository.js
  */
 
-import { app, auth, db, storage } from '../firebase';
-import { authService } from '../services/AuthService';
-import { userRepository } from './UserRepository';
-import { groupRepository } from './GroupRepository';
-import { messageRepository } from './MessageRepository';
-import { meetingRepository } from './MeetingRepository';
-import { reviewRepository } from './ReviewRepository';
-import { COLLECTIONS } from '../models/CollectionNames';
+import { app, auth, db, storage } from "../firebase";
+import { authService } from "../services/AuthService";
+import { userRepository } from "./UserRepository";
+import { groupRepository } from "./GroupRepository";
+import { messageRepository } from "./MessageRepository";
+import { meetingRepository } from "./MeetingRepository";
+import { reviewRepository } from "./ReviewRepository";
+import { postRepository } from "./PostRepository";
+import { COLLECTIONS } from "../models/CollectionNames";
 
 // ─── mockAuth shim ────────────────────────────────────────────────────────────
 
 const mockAuth = {
   onAuthStateChanged: (cb) => authService.onAuthStateChanged(cb),
-  signInWithEmailAndPassword: (email, password) => authService.signIn(email, password).then(user => ({ user })),
-  createUserWithEmailAndPassword: (email, password, name) => authService.register(email, password, name).then(user => ({ user })),
+  signInWithEmailAndPassword: (email, password) =>
+    authService.signIn(email, password).then((user) => ({ user })),
+  createUserWithEmailAndPassword: (email, password, name) =>
+    authService.register(email, password, name).then((user) => ({ user })),
   signOut: () => authService.signOut(),
 };
 
@@ -36,10 +39,11 @@ const mockAuth = {
  * vẫn hoạt động với code cũ dùng tên collection dạng string.
  */
 const REPO_MAP = {
-  [COLLECTIONS.USERS]:    userRepository,
-  [COLLECTIONS.GROUPS]:   groupRepository,
+  [COLLECTIONS.USERS]: userRepository,
+  [COLLECTIONS.GROUPS]: groupRepository,
   [COLLECTIONS.MEETINGS]: meetingRepository,
-  [COLLECTIONS.REVIEWS]:  reviewRepository,
+  [COLLECTIONS.REVIEWS]: reviewRepository,
+  posts: postRepository,
 };
 
 const mockDb = {
@@ -62,23 +66,47 @@ const mockDb = {
   async updateDocument(colName, docId, fields) {
     const repo = REPO_MAP[colName];
     if (repo?.update) return repo.update(docId, fields);
-    console.warn(`[mockDb.updateDocument] Không có repository cho "${colName}"`);
+    console.warn(
+      `[mockDb.updateDocument] Không có repository cho "${colName}"`,
+    );
+  },
+
+  async deleteGroup(groupId) {
+    return groupRepository.deleteGroup(groupId);
+  },
+
+  async leaveGroup(groupId, userId) {
+    return groupRepository.leaveGroup(groupId, userId);
+  },
+
+  async addComment(postId, comment) {
+    return postRepository.addComment(postId, comment);
   },
 
   // ── User helpers ──────────────────────────────────────────────────────────
 
   getUserById: (uid) => userRepository.getById(uid),
-  savePushTokenForUser: (uid, token) => userRepository.savePushToken(uid, token),
+  savePushTokenForUser: (uid, token) =>
+    userRepository.savePushToken(uid, token),
 
   // ── Chat ──────────────────────────────────────────────────────────────────
 
-  subscribeToChat: (groupId, cb) => messageRepository.subscribeToGroup(groupId, cb),
+  subscribeToChat: (groupId, cb) =>
+    messageRepository.subscribeToGroup(groupId, cb),
   sendMessage: (groupId, senderId, senderName, text, fileUrl, fileType) =>
-    messageRepository.send(groupId, senderId, senderName, text, fileUrl, fileType),
+    messageRepository.send(
+      groupId,
+      senderId,
+      senderName,
+      text,
+      fileUrl,
+      fileType,
+    ),
 
   // ── Storage ───────────────────────────────────────────────────────────────
 
-  uploadFile: (storagePath, localUri) => messageRepository.uploadFile(storagePath, localUri),
+  uploadFile: (storagePath, localUri) =>
+    messageRepository.uploadFile(storagePath, localUri),
 };
 
 export { app, auth, db, storage, mockAuth, mockDb };
